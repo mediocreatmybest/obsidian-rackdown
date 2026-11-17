@@ -1,0 +1,105 @@
+name: Draft pre-release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: draft-prerelease
+  cancel-in-progress: false
+
+jobs:
+  prerelease:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - name: Require main
+        run: test "$GITHUB_REF" = refs/heads/main
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: '24.19.0'
+          package-manager-cache: false
+      - name: Set up pinned package managers
+        run: npm install --global npm@11.9.0 corepack@0.34.6
+      - name: Prepare pinned Core and devices archives
+        run: npm run prepare:rackdown
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npm run test:dist
+      - run: npm run test:release
+      - run: npm run package:release
+      - name: Verify release assets
+        run: |
+          version=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json')).version")
+          cd ".rackdown/release/$version"
+          sha256sum --check SHA256SUMS
+          sha256sum main.js manifest.json styles.css "rackdown-$version.zip" SHA256SUMS
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          release = Path.cwd()
+          dist = release.parents[2] / 'dist'
+          for name in ('main.js', 'manifest.json', 'styles.css'):
+              assert (release / name).read_bytes() == (dist / name).read_bytes(), name
+          with ZipFile(f'rackdown-{release.name}.zip') as archive:
+              assert archive.testzip() is None
+              expected = sorted('rackdown/' + str(p.relative_to(dist))
+                                for p in dist.rglob('*') if p.is_file())
+              assert archive.namelist() == expected
+              for entry in archive.infolist():
+                  assert archive.read(entry) == (dist / entry.filename.removeprefix('rackdown/')).read_bytes()
+                  assert entry.date_time == (1980, 1, 1, 0, 0, 0)
+                  assert entry.external_attr >> 16 == 0o100644
+          PY
+          cd ../../..
+          sha256sum .rackdown/core.tgz .rackdown/devices.tgz
+          git diff --exit-code
+      - name: Create preview tag and draft pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          source=$(git rev-parse HEAD)
+          test "$source" = "$GITHUB_SHA"
+          version=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json')).version")
+          test "$version" = 0.1.0
+          tag="$version-pre.$(date -u +%Y%m%d).${source:0:7}"
+          # Preview tags intentionally differ from the manifest version.
+          # A future official release must use exactly 0.1.0, without a prefix.
+          git check-ref-format "refs/tags/$tag"
+          gh api --paginate "repos/$GH_REPO/releases" --jq '.[].tag_name' > .rackdown/release-tags
+          if grep -Fxq "$tag" .rackdown/release-tags; then
+            echo "Release already exists: $tag" >&2
+            exit 1
+          fi
+          cat > .rackdown/preview-notes <<EOF
+          Maintainer testing preview of plugin $version from source commit $source.
+
+          Preview tag: $tag. This intentionally differs from the manifest version.
+          Install the three individual Obsidian assets or extract rackdown-$version.zip.
+          The ZIP includes licences, third-party notices and dependency provenance.
+          SHA256SUMS covers the individual runtime assets and installation ZIP.
+
+          This is a draft pre-release. Publication is a separate maintainer action.
+          The eventual official $version release must use the exact tag $version.
+          EOF
+          # POST creates a new ref atomically and fails if it already exists.
+          # Never PATCH a ref, force-push, or overwrite release assets.
+          gh api --method POST "repos/$GH_REPO/git/refs" \
+            -f "ref=refs/tags/$tag" -f "sha=$source"
+          release=".rackdown/release/$version"
+          gh release create "$tag" --verify-tag --target "$source" \
+            --draft --prerelease --title "RackDown $tag" \
+            --notes-file .rackdown/preview-notes \
+            "$release/main.js" "$release/manifest.json" "$release/styles.css" \
+            "$release/rackdown-$version.zip" "$release/SHA256SUMS"
