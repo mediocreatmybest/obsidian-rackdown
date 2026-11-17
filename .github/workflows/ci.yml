@@ -33,9 +33,10 @@ jobs:
       - run: npm run package:release
       - name: Verify release assets
         run: |
-          cd .rackdown/release/0.1.0
+          version=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json')).version")
+          cd ".rackdown/release/$version"
           sha256sum --check SHA256SUMS
-          sha256sum main.js manifest.json styles.css rackdown-0.1.0.zip SHA256SUMS
+          sha256sum main.js manifest.json styles.css "rackdown-$version.zip" SHA256SUMS
           python3 - <<'PY'
           from pathlib import Path
           from zipfile import ZipFile
@@ -43,7 +44,7 @@ jobs:
           dist = release.parents[2] / 'dist'
           for name in ('main.js', 'manifest.json', 'styles.css'):
               assert (release / name).read_bytes() == (dist / name).read_bytes(), name
-          with ZipFile('rackdown-0.1.0.zip') as archive:
+          with ZipFile(f'rackdown-{release.name}.zip') as archive:
               assert archive.testzip() is None
               expected = sorted('rackdown/' + str(p.relative_to(dist))
                                 for p in dist.rglob('*') if p.is_file())
