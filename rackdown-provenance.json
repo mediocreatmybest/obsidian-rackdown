@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/mediocreatmybest/RackDown.git",
+  "commit": "d9b2bde3789802c9bb0e2f0c46238f23d2841e1b",
+  "pluginPath": "packages/obsidian-rackdown",
+  "packageManager": "pnpm@11.23.0",
+  "packages": {
+    "@rackdown/core": "0.1.0",
+    "@rackdown/devices": "0.1.0"
+  },
+  "catalogue": {
+    "repository": "netbox-community/devicetype-library",
+    "commit": "f2d95de24cb3bdd780b93bd7d46d489be3789a8a",
+    "license": "CC0-1.0"
+  }
+}

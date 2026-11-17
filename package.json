@@ -1,0 +1,40 @@
+{
+  "name": "obsidian-rackdown",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "npm@11.9.0",
+  "engines": {
+    "node": "^22.18.0 || ^24.11.0 || >=26.0.0"
+  },
+  "scripts": {
+    "prepare:rackdown": "node scripts/prepare-rackdown.mjs",
+    "build": "node build.mjs",
+    "test": "node scripts/prepare-rackdown.test.mjs && vitest run",
+    "test:dist": "node test/distribution.test.mjs",
+    "test:browser": "node test/viewport-browser.mjs",
+    "typecheck": "tsc --noEmit",
+    "test:release": "python3 -m unittest discover -s test -p 'test_*.py'",
+    "package:release": "python3 scripts/package-release.py"
+  },
+  "dependencies": {
+    "@rackdown/core": "file:.rackdown/core.tgz",
+    "@rackdown/devices": "file:.rackdown/devices.tgz"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.5",
+    "esbuild": "0.28.2",
+    "obsidian": "1.14.4",
+    "typescript": "7.0.2",
+    "vitest": "5.0.5"
+  },
+  "description": "Obsidian adapter for RackDown rack diagrams.",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mediocreatmybest/obsidian-rackdown.git"
+  },
+  "files": [
+    "dist"
+  ]
+}

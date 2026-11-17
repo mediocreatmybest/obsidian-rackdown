@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.rackdown/
+coverage/
+*.tsbuildinfo
+
+__pycache__/
+*.pyc
