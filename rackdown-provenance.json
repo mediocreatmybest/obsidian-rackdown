@@ -1,6 +1,6 @@
 {
   "repository": "https://github.com/mediocreatmybest/RackDown.git",
-  "commit": "d9b2bde3789802c9bb0e2f0c46238f23d2841e1b",
+  "commit": "3d5f46d543e95e27ae3b62f992696cfeece05dba",
   "pluginPath": "packages/obsidian-rackdown",
   "packageManager": "pnpm@11.23.0",
   "packages": {
