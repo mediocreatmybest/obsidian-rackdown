@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: draft-prerelease
+  group: draft-plugin-release
   cancel-in-progress: false
 
 jobs:
@@ -69,13 +69,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
+          test "$GITHUB_REF" = refs/heads/main
           source=$(git rev-parse HEAD)
           test "$source" = "$GITHUB_SHA"
           version=$(node -p "JSON.parse(require('fs').readFileSync('manifest.json')).version")
-          test "$version" = 0.1.0
           tag="$version-pre.$(date -u +%Y%m%d).${source:0:7}"
           # Preview tags intentionally differ from the manifest version.
-          # A future official release must use exactly 0.1.0, without a prefix.
+          # An official release uses the manifest version, without a prefix.
           git check-ref-format "refs/tags/$tag"
           gh api --paginate "repos/$GH_REPO/releases" --jq '.[].tag_name' > .rackdown/release-tags
           if grep -Fxq "$tag" .rackdown/release-tags; then
@@ -97,6 +97,8 @@ jobs:
           # Never PATCH a ref, force-push, or overwrite release assets.
           gh api --method POST "repos/$GH_REPO/git/refs" \
             -f "ref=refs/tags/$tag" -f "sha=$source"
+          tagged_source=$(gh api "repos/$GH_REPO/git/ref/tags/$tag" --jq '.object.sha')
+          test "$tagged_source" = "$source"
           release=".rackdown/release/$version"
           gh release create "$tag" --verify-tag --target "$source" \
             --draft --prerelease --title "RackDown $tag" \
